@@ -17,6 +17,41 @@ int set_screen_size(int x, int y)
 	SetConsoleWindowInfo(hcon,TRUE,&size);
 	return TRUE;
 }
+int set_buffer_size(int x,int y)
+{
+	HANDLE hcon;
+	SMALL_RECT size;
+	COORD c;
+	hcon = GetStdHandle(STD_OUTPUT_HANDLE);
+	c.X=x;
+	c.Y=y;
+	SetConsoleScreenBufferSize(hcon,c);
+	return TRUE;
+}
+int get_max_screen(COORD *c)
+{
+	HANDLE hcon;
+	hcon = GetStdHandle(STD_OUTPUT_HANDLE);
+	if(hcon){
+		CONSOLE_SCREEN_BUFFER_INFO ci={0};
+		GetConsoleScreenBufferInfo(hcon,&ci);
+		*c=ci.dwMaximumWindowSize;
+		return TRUE;
+	}
+	return FALSE;
+}
+int position_window()
+{
+	char *title="ASCII LIST";
+	HWND hwnd;
+	SetConsoleTitle(title);
+	Sleep(40);
+	hwnd=FindWindow(NULL,title);
+	if(hwnd){
+		SetWindowPos(hwnd,NULL,0,0,0,0,SWP_NOSIZE|SWP_NOZORDER);
+	}
+	return TRUE;
+}
 typedef struct{
 	int val;
 	char *descrip1;
@@ -80,11 +115,24 @@ int main(int argc,char *argv[])
 {
 	int i,j,k;
 	char a;
+	char *prompt=0;
+	int cols=4;
+	prompt=getenv("PROMPT");
+	if(prompt==0){
+		COORD c={80,66};
+		get_max_screen(&c);
+		if(c.Y<66){
+			set_buffer_size(c.X+20,c.Y);
+			cols=5;
+			c.Y-=1;
+		}
+		set_screen_size(c.X,c.Y);
+		position_window();
+	}
 again:
-	set_screen_size(80,66);
-	for(i=0;i<256/4;i++){
-		for(j=0;j<4;j++){
-			k=i+(j*256/4);
+	for(i=0;i<256/cols;i++){
+		for(j=0;j<cols;j++){
+			k=i+(j*256/cols);
 			if(k>=' ')
 				a=k;
 			else if(k<7)
@@ -113,6 +161,13 @@ again:
 				printf("0x%02X %3i %c  |  ",k,k,a);
 		}
 		printf("\n");
+	}
+	if(cols==5){
+		k=255;
+		a=k;
+		for(i=0;i<4;i++)
+			printf("            |  ");
+		printf("0x%02X %3i %c  |  \n",k,k,a);
 	}
 	printf("\\a=beep (bel) F1 symbols sorted name F2 by value\n");
 	k=getch();
